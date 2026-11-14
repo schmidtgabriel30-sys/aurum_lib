@@ -1,45 +1,59 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme.dart';
-import '../../../widgets/common.dart';
 
+import '../../../core/constants/home_content.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../../widgets/eyebrow.dart';
+import '../../../widgets/page_section.dart';
+import '../../../widgets/section_title.dart';
+
+/// Seção escura com os benefícios da prevenção.
 class WhySection extends StatelessWidget {
   const WhySection({super.key});
 
-  static const _items = [
-    (Icons.shield_outlined, 'Mais atenção à segurança',
-        'Acompanhe as condições de componentes importantes para dirigir.'),
-    (Icons.search, 'Menos surpresas no caminho',
-        'Identifique sinais de desgaste antes que se tornem problemas maiores.'),
-    (Icons.event_note_outlined, 'Manutenção com planejamento',
-        'Entenda as necessidades do carro e organize os próximos cuidados.'),
-  ];
-
   @override
-  Widget build(BuildContext context) => Section(
-        bg: C.dark,
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Eyebrow('Por que prevenir', color: C.sand),
-          const SizedBox(height: 12),
-          const H2('O melhor cuidado começa\nantes.', color: Colors.white),
-          const SizedBox(height: 20),
-          for (final i in _items)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Icon(i.$1, size: 14, color: C.sand),
-                const SizedBox(width: 10),
+  Widget build(BuildContext context) => PageSection(
+    background: AppColors.dark,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Eyebrow(HomeContent.whyEyebrow, color: AppColors.sand),
+        const SizedBox(height: AppSpacing.md),
+        const SectionTitle(HomeContent.whyTitle, color: AppColors.white),
+        const SizedBox(height: AppSpacing.xl),
+        for (final (icon, title, text) in HomeContent.why)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(icon, size: AppSizes.iconMd, color: AppColors.sand),
+                const SizedBox(width: AppSpacing.md),
                 Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(i.$2,
-                        style: const TextStyle(
-                            fontSize: 11, color: Colors.white, fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 4),
-                    Text(i.$3,
-                        style: const TextStyle(fontSize: 9, color: Color(0xFFB9B2A6), height: 1.5)),
-                  ]),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: AppTextStyles.itemTitle.copyWith(
+                          color: AppColors.white,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        text,
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.mutedOnDark,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ]),
+              ],
             ),
-        ]),
-      );
+          ),
+      ],
+    ),
+  );
 }

@@ -1,55 +1,67 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme.dart';
-import '../../../widgets/common.dart';
 
+import '../../../core/constants/home_content.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../../widgets/eyebrow.dart';
+import '../../../widgets/page_section.dart';
+import '../../../widgets/section_title.dart';
+
+/// Lista dos três serviços incluídos no pacote.
 class IncludesSection extends StatelessWidget {
   const IncludesSection({super.key});
 
-  static const _items = [
-    (Icons.opacity, 'Troca de óleo e filtro de óleo',
-        'Cuidado com a lubrificação para o bom funcionamento do motor.', 'PROTEÇÃO DO MOTOR'),
-    (Icons.fact_check_outlined, 'Check-up completo de 40 itens',
-        'Verificação de freios, suspensão, fluidos e correias para identificar pontos de atenção.',
-        'VISÃO COMPLETA DO VEÍCULO'),
-    (Icons.memory, 'Diagnóstico eletrônico computadorizado',
-        'Leitura dos sistemas eletrônicos para apoiar a avaliação do seu carro.',
-        'TECNOLOGIA NO DIAGNÓSTICO'),
-  ];
-
   @override
-  Widget build(BuildContext context) => Section(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Eyebrow('O que está incluído'),
-          const SizedBox(height: 12),
-          const H2('Três cuidados.\nUma revisão completa.'),
-          const SizedBox(height: 8),
-          const Text('Entenda cada serviço do pacote preventivo.',
-              style: TextStyle(fontSize: 10, color: C.muted)),
-          const SizedBox(height: 16),
-          for (final i in _items)
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: C.line))),
-              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Container(
-                  width: 30,
-                  height: 30,
-                  decoration: BoxDecoration(color: C.iconBg, borderRadius: BorderRadius.circular(8)),
-                  child: Icon(i.$1, size: 14, color: C.gold),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(i.$2, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 4),
-                    Text(i.$3, style: const TextStyle(fontSize: 9, color: C.muted, height: 1.5)),
-                    const SizedBox(height: 6),
-                    Text(i.$4,
-                        style: const TextStyle(fontSize: 7, color: C.gold, fontWeight: FontWeight.w700)),
-                  ]),
-                ),
-              ]),
+  Widget build(BuildContext context) => PageSection(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Eyebrow(HomeContent.includesEyebrow),
+        const SizedBox(height: AppSpacing.md),
+        const SectionTitle(HomeContent.includesTitle),
+        const SizedBox(height: AppSpacing.sm),
+        const Text(HomeContent.includesText, style: AppTextStyles.body),
+        const SizedBox(height: AppSpacing.lg),
+        for (final (icon, title, text, tag) in HomeContent.includes)
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+            decoration: const BoxDecoration(
+              border: Border(bottom: BorderSide(color: AppColors.line)),
             ),
-        ]),
-      );
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: AppSizes.iconBox,
+                  height: AppSizes.iconBox,
+                  decoration: BoxDecoration(
+                    color: AppColors.iconBackground,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                  ),
+                  child: Icon(
+                    icon,
+                    size: AppSizes.iconMd,
+                    color: AppColors.gold,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: AppTextStyles.cardTitle),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(text, style: AppTextStyles.bodySmall),
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(tag, style: AppTextStyles.tag),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    ),
+  );
 }

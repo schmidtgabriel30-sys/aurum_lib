@@ -1,36 +1,53 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme.dart';
-import '../../../widgets/common.dart';
 
+import '../../../core/constants/home_content.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../../widgets/app_logo.dart';
+import '../../../widgets/eyebrow.dart';
+import '../../../widgets/page_section.dart';
+import '../../../widgets/section_title.dart';
+
+/// Texto institucional sobre a marca.
 class EssenceSection extends StatelessWidget {
-  final VoidCallback onSchedule;
   const EssenceSection({super.key, required this.onSchedule});
 
+  final VoidCallback onSchedule;
+
   @override
-  Widget build(BuildContext context) => Section(
-        bg: C.beige,
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Eyebrow('Essência Aurum'),
-            AurumLogo(height: 26),
-          ]),
-          const SizedBox(height: 12),
-          const H2('Cuidado com o carro.\nRespeito por você.'),
-          const SizedBox(height: 12),
-          const Text(
-            'Na Aurum Automotive, acreditamos que cuidar do seu carro também é cuidar da sua rotina. Nossa proposta une manutenção preventiva, diagnóstico e informação clara para orientar suas escolhas.',
-            style: TextStyle(fontSize: 10, color: C.muted, height: 1.6),
+  Widget build(BuildContext context) => PageSection(
+    background: AppColors.beige,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Eyebrow(HomeContent.essenceEyebrow),
+            AppLogo(height: AppSizes.logoSm),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.md),
+        const SectionTitle(HomeContent.essenceTitle),
+        const SizedBox(height: AppSpacing.md),
+        const Text(HomeContent.essenceText, style: AppTextStyles.body),
+        const SizedBox(height: AppSpacing.md),
+        InkWell(
+          onTap: onSchedule,
+          child: const Row(
+            children: [
+              Text(HomeContent.essenceLink, style: AppTextStyles.link),
+              SizedBox(width: AppSpacing.sm),
+              Icon(
+                Icons.north_east,
+                size: AppSizes.iconXs,
+                color: AppColors.gold,
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
-          InkWell(
-            onTap: onSchedule,
-            child: const Row(children: [
-              Text('Vamos cuidar do seu carro?',
-                  style: TextStyle(fontSize: 10, color: C.gold, fontWeight: FontWeight.w600)),
-              SizedBox(width: 6),
-              Icon(Icons.north_east, size: 11, color: C.gold),
-            ]),
-          ),
-        ]),
-      );
+        ),
+      ],
+    ),
+  );
 }

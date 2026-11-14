@@ -1,33 +1,37 @@
-import 'package:go_router/go_router.dart';
-import '../../screens/home_screen.dart';     // Troque pelos nomes reais das suas telas
-import '../../screens/list_screen.dart';     // Exemplo de segunda tela
-import '../../screens/form_screen.dart';     // Exemplo de terceira tela
-import '../../screens/details_screen.dart';  // Exemplo de quarta tela
+/// Nomes e caminhos das rotas do app.
+///
+/// Nunca escreva o caminho como texto ao navegar: use
+/// `context.goNamed(AppRoutes.appointments)`. Assim, mudar um caminho é uma
+/// alteração em um arquivo só.
+abstract final class AppRoutes {
+  // Página inicial (pública)
+  static const String home = 'home';
+  static const String homePath = '/';
 
-class AppRoutes {
-  static final GoRouter router = GoRouter(
-    initialLocation: '/',
-    routes: [
-      GoRoute(
-        path: '/',
-        name: 'home',
-        builder: (context, state) => const HomeScreen(),
-      ),
-      GoRoute(
-        path: '/list',
-        name: 'list',
-        builder: (context, state) => const ListScreen(),
-      ),
-      GoRoute(
-        path: '/form',
-        name: 'form',
-        builder: (context, state) => const FormScreen(),
-      ),
-      GoRoute(
-        path: '/details',
-        name: 'details',
-        builder: (context, state) => const DetailsScreen(),
-      ),
-    ],
-  );
+  // Autenticação
+  static const String signIn = 'sign-in';
+  static const String signInPath = '/login';
+
+  static const String signUp = 'sign-up';
+  static const String signUpPath = '/cadastro';
+
+  // Conta (exige login)
+  static const String account = 'account';
+  static const String accountPath = '/conta';
+
+  // Agendamentos — CRUD (exige login)
+  static const String appointments = 'appointments';
+  static const String appointmentsPath = '/agendamentos';
+
+  static const String appointmentNew = 'appointment-new';
+  static const String appointmentNewPath = 'novo';
+
+  static const String appointmentDetails = 'appointment-details';
+  static const String appointmentDetailsPath = ':id';
+
+  static const String appointmentEdit = 'appointment-edit';
+  static const String appointmentEditPath = 'editar';
+
+  /// Nome do parâmetro de caminho usado em detalhes e edição.
+  static const String idParam = 'id';
 }

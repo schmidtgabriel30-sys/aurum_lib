@@ -1,25 +1,21 @@
 import 'package:flutter/material.dart';
-import 'core/theme.dart';
-import 'pages/home/home_page.dart';
-import 'pages/login_page.dart';
-import 'pages/register_page.dart';
-import 'pages/account_page.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
-void main() => runApp(const AurumApp());
+import 'app.dart';
+import 'services/auth_service.dart';
 
-class AurumApp extends StatelessWidget {
-  const AurumApp({super.key});
+/// Ponto de entrada do app.
+///
+/// Tudo o que precisa acontecer **antes** da primeira tela aparecer mora
+/// aqui. A árvore de widgets em si fica em `app.dart`.
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
 
-  @override
-  Widget build(BuildContext context) => MaterialApp(
-        debugShowCheckedModeBanner: false,
-        title: 'Aurum Automotive',
-        theme: buildTheme(),
-        routes: {
-          '/': (_) => const HomePage(),
-          '/login': (_) => const LoginPage(),
-          '/cadastro': (_) => const RegisterPage(),
-          '/conta': (_) => const AccountPage(),
-        },
-      );
+  // Carrega nomes de dias e meses em português para o `DateFormat`.
+  await initializeDateFormatting('pt_BR');
+
+  // Recupera o login salvo no aparelho (token do Laravel Sanctum).
+  await AuthService.instance.restoreSession();
+
+  runApp(const AurumApp());
 }
