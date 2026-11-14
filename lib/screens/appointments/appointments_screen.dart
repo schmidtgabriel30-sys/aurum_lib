@@ -4,18 +4,17 @@ import 'package:go_router/go_router.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_spacing.dart';
+import '../../core/utils/formatters.dart';
 import '../../models/appointment.dart';
 import '../../services/appointment_service.dart';
-import '../../widgets/empty_state.dart';
-import '../../widgets/error_state.dart';
-import '../../widgets/loading_state.dart';
-import 'appointment_card.dart';
+import '../../widgets/list_screen_body.dart';
+import '../../widgets/list_tile_card.dart';
+import '../../widgets/status_badge.dart';
 
 /// Lista de agendamentos do usuário (o "R" do CRUD).
 ///
-/// Usa um [FutureBuilder] para tratar os três estados: carregando, erro e
-/// lista vazia. Recarrega sozinha quando um agendamento é criado, editado ou
+/// Os estados de carregando, erro e lista vazia ficam no [ListScreenBody].
+/// A lista recarrega sozinha quando um agendamento é criado, editado ou
 /// excluído, escutando `AppointmentService.changes`.
 class AppointmentsScreen extends StatefulWidget {
   const AppointmentsScreen({super.key});
@@ -47,8 +46,6 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     await _future.catchError((_) => <Appointment>[]);
   }
 
-  void _openNew() => context.goNamed(AppRoutes.appointmentNew);
-
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: AppColors.pageBackground,
@@ -61,52 +58,29 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
       title: const Text(AppStrings.appointmentsTitle),
     ),
     floatingActionButton: FloatingActionButton.extended(
-      onPressed: _openNew,
+      onPressed: () => context.goNamed(AppRoutes.appointmentNew),
       icon: const Icon(Icons.add),
       label: const Text(AppStrings.appointmentsNew),
     ),
-    body: FutureBuilder<List<Appointment>>(
+    body: ListScreenBody<Appointment>(
       future: _future,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const LoadingState();
-        }
-        if (snapshot.hasError) {
-          return ErrorState(message: '${snapshot.error}', onRetry: _reload);
-        }
-
-        final List<Appointment> items = snapshot.data!;
-        if (items.isEmpty) {
-          return const EmptyState(
-            message: AppStrings.appointmentsEmpty,
-            icon: Icons.event_available_outlined,
-          );
-        }
-
-        return RefreshIndicator(
-          onRefresh: _refresh,
-          child: ListView.separated(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.screenPadding,
-              AppSpacing.lg,
-              AppSpacing.screenPadding,
-              AppSpacing.xxxl * 3,
-            ),
-            itemCount: items.length,
-            separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
-            itemBuilder: (context, index) {
-              final Appointment item = items[index];
-              return AppointmentCard(
-                appointment: item,
-                onTap: () => context.goNamed(
-                  AppRoutes.appointmentDetails,
-                  pathParameters: {AppRoutes.idParam: '${item.id}'},
-                ),
-              );
-            },
-          ),
-        );
-      },
+      onRetry: _reload,
+      onRefresh: _refresh,
+      emptyMessage: AppStrings.appointmentsEmpty,
+      emptyIcon: Icons.event_available_outlined,
+      itemBuilder: (context, item) => ListTileCard(
+        icon: Icons.build_outlined,
+        title: item.service?.name ?? AppStrings.fieldService,
+        lines: [
+          '${Formatters.fullDate(item.date)} • ${item.period.label}',
+          if (item.vehicle != null) item.vehicle!.title,
+        ],
+        trailing: StatusBadge(status: item.status),
+        onTap: () => context.goNamed(
+          AppRoutes.appointmentDetails,
+          pathParameters: {AppRoutes.idParam: '${item.id}'},
+        ),
+      ),
     ),
   );
 }

@@ -32,6 +32,23 @@ abstract final class AppRoutes {
   static const String appointmentEdit = 'appointment-edit';
   static const String appointmentEditPath = 'editar';
 
+  // Veículos — CRUD (exige login)
+  static const String vehicles = 'vehicles';
+  static const String vehiclesPath = '/veiculos';
+
+  static const String vehicleNew = 'vehicle-new';
+  static const String vehicleNewPath = 'novo';
+
+  static const String vehicleEdit = 'vehicle-edit';
+  static const String vehicleEditPath = ':id/editar';
+
   /// Nome do parâmetro de caminho usado em detalhes e edição.
   static const String idParam = 'id';
+
+  /// Rotas que exigem login.
+  static const List<String> privatePaths = [
+    appointmentsPath,
+    vehiclesPath,
+    accountPath,
+  ];
 }

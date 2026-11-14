@@ -4,11 +4,18 @@ import '../constants/app_strings.dart';
 ///
 /// Cada função devolve `null` quando o valor é válido e uma mensagem de erro
 /// quando não é — exatamente o contrato que o `validator:` do
-/// `TextFormField` espera.
+/// `TextFormField` espera. As regras espelham as da API Laravel, para o
+/// usuário ver o erro antes mesmo de enviar.
 abstract final class Validators {
   static final RegExp _emailPattern = RegExp(r'^[\w.\-+]+@[\w\-]+\.[\w\-.]+$');
 
+  /// Placa antiga (ABC1234) ou Mercosul (ABC1D23).
+  static final RegExp _platePattern = RegExp(
+    r'^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$',
+  );
+
   static const int passwordMinLength = 8;
+  static const int minVehicleYear = 1950;
 
   static String? required(String? value, {String field = 'Este campo'}) {
     if (value == null || value.trim().isEmpty) {
@@ -61,13 +68,30 @@ abstract final class Validators {
     return null;
   }
 
-  /// Aceita celular com DDD: 10 ou 11 dígitos, com ou sem máscara.
-  static String? phone(String? value) {
-    final String? empty = required(value, field: AppStrings.fieldPhone);
+  /// Aceita com ou sem hífen e em minúsculas: `abc-1d23` é válida.
+  static String? plate(String? value) {
+    final String? empty = required(value, field: AppStrings.fieldPlate);
     if (empty != null) return empty;
 
-    final int digits = value!.replaceAll(RegExp(r'\D'), '').length;
-    if (digits < 10 || digits > 11) return AppStrings.validationPhone;
+    final String normalized = value!.toUpperCase().replaceAll(
+      RegExp(r'[\s-]'),
+      '',
+    );
+    if (!_platePattern.hasMatch(normalized)) return AppStrings.validationPlate;
+    return null;
+  }
+
+  /// Ano entre 1950 e o próximo ano (mesma regra da API).
+  static String? year(String? value, {DateTime? today}) {
+    final String? empty = required(value, field: AppStrings.fieldYear);
+    if (empty != null) return empty;
+
+    final int max = (today ?? DateTime.now()).year + 1;
+    final int? year = int.tryParse(value!.trim());
+    if (year == null || year < minVehicleYear || year > max) {
+      return '${AppStrings.validationYear} $minVehicleYear '
+          '${AppStrings.validationYearAnd} $max.';
+    }
     return null;
   }
 
@@ -80,9 +104,5 @@ abstract final class Validators {
     final DateTime start = DateTime(now.year, now.month, now.day);
     if (value.isBefore(start)) return AppStrings.validationPastDate;
     return null;
-  }
-
-  static String? consent(bool? value) {
-    return value == true ? null : AppStrings.validationConsent;
   }
 }

@@ -7,22 +7,25 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
-import '../../core/utils/phone_input_formatter.dart';
 import '../../core/utils/validators.dart';
 import '../../models/appointment.dart';
+import '../../models/service_item.dart';
+import '../../models/vehicle.dart';
 import '../../services/api_client.dart';
 import '../../services/appointment_service.dart';
-import '../../services/auth_service.dart';
+import '../../services/service_item_service.dart';
+import '../../services/vehicle_service.dart';
 import '../../widgets/app_text_field.dart';
+import '../../widgets/empty_state.dart';
 import '../../widgets/error_state.dart';
 import '../../widgets/field_label.dart';
 import '../../widgets/loading_state.dart';
 import '../../widgets/primary_button.dart';
 
-/// Formulário de agendamento: cria (o "C") ou edita (o "U") um registro.
+/// Formulário de agendamento: cria (o "C") ou reagenda (o "U").
 ///
-/// Sem [appointmentId] a tela cria um agendamento novo. Com ele, busca o
-/// registro na API e preenche os campos para edição.
+/// Ao abrir, busca na API os veículos do usuário e o catálogo de serviços
+/// (e, na edição, o próprio agendamento) para preencher as listas.
 class AppointmentFormScreen extends StatefulWidget {
   const AppointmentFormScreen({super.key, this.appointmentId});
 
@@ -39,64 +42,72 @@ class _AppointmentFormScreenState extends State<AppointmentFormScreen> {
 
   final AppointmentService _service = AppointmentService.instance;
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-
-  final TextEditingController _name = TextEditingController();
-  final TextEditingController _phone = TextEditingController();
-  final TextEditingController _vehicle = TextEditingController();
   final TextEditingController _date = TextEditingController();
   final TextEditingController _notes = TextEditingController();
 
+  List<Vehicle> _vehicles = [];
+  List<ServiceItem> _services = [];
+  int? _vehicleId;
+  int? _serviceId;
   DateTime? _selectedDate;
   AppointmentPeriod? _period;
-  bool _consent = false;
 
-  bool _loading = false;
+  bool _loading = true;
   String? _loadError;
   bool _saving = false;
 
   @override
   void initState() {
     super.initState();
-    if (widget.isEditing) {
-      _load();
-    } else {
-      _name.text = AuthService.instance.currentUser?.name ?? '';
-    }
+    _load();
   }
 
   @override
   void dispose() {
-    for (final TextEditingController c in [
-      _name,
-      _phone,
-      _vehicle,
-      _date,
-      _notes,
-    ]) {
-      c.dispose();
-    }
+    _date.dispose();
+    _notes.dispose();
     super.dispose();
   }
 
-  /// Na edição, busca o agendamento e preenche o formulário.
+  /// Busca, em paralelo, tudo o que o formulário precisa.
   Future<void> _load() async {
     setState(() {
       _loading = true;
       _loadError = null;
     });
     try {
-      final Appointment a = await _service.fetchById(widget.appointmentId!);
-      _name.text = a.name;
-      _phone.text = Formatters.phone(a.phone);
-      _vehicle.text = a.vehicle;
-      _notes.text = a.notes;
-      _setDate(a.preferredDate);
-      _period = a.period;
-      _consent = a.contactConsent;
+      // As três buscas rodam ao mesmo tempo; o Future.wait espera todas.
+      final List<Object?> results = await Future.wait<Object?>([
+        VehicleService.instance.fetchAll(),
+        ServiceItemService.instance.fetchAll(),
+        if (widget.isEditing) _service.fetchById(widget.appointmentId!),
+      ]);
+
+      _vehicles = results[0]! as List<Vehicle>;
+      _services = results[1]! as List<ServiceItem>;
+      if (widget.isEditing) _fill(results[2]! as Appointment);
     } on ApiException catch (e) {
       _loadError = e.message;
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  /// Na edição, preenche os campos com o agendamento vindo da API.
+  void _fill(Appointment a) {
+    _vehicleId = a.vehicleId;
+    _serviceId = a.serviceId;
+    _period = a.period;
+    _notes.text = a.notes;
+    _setDate(a.date);
+
+    // Garante que o veículo/serviço atual aparece na lista, mesmo se tiver
+    // sido desativado depois.
+    if (a.vehicle != null && _vehicles.every((v) => v.id != a.vehicleId)) {
+      _vehicles = [..._vehicles, a.vehicle!];
+    }
+    if (a.service != null && _services.every((s) => s.id != a.serviceId)) {
+      _services = [..._services, a.service!];
     }
   }
 
@@ -108,11 +119,11 @@ class _AppointmentFormScreenState extends State<AppointmentFormScreen> {
   Future<void> _pickDate() async {
     final DateTime today = DateTime.now();
     final DateTime first = DateTime(today.year, today.month, today.day);
-    final DateTime? initial = _selectedDate;
+    final DateTime? current = _selectedDate;
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: initial != null && !initial.isBefore(first)
-          ? initial
+      initialDate: current != null && !current.isBefore(first)
+          ? current
           : first.add(const Duration(days: 1)),
       firstDate: first,
       lastDate: first.add(const Duration(days: _maxDaysAhead)),
@@ -125,13 +136,11 @@ class _AppointmentFormScreenState extends State<AppointmentFormScreen> {
 
     final Appointment appointment = Appointment(
       id: widget.appointmentId,
-      name: _name.text.trim(),
-      phone: _phone.text.replaceAll(RegExp(r'\D'), ''),
-      vehicle: _vehicle.text.trim(),
-      preferredDate: _selectedDate!,
+      vehicleId: _vehicleId!,
+      serviceId: _serviceId!,
+      date: _selectedDate!,
       period: _period!,
       notes: _notes.text.trim(),
-      contactConsent: _consent,
     );
 
     setState(() => _saving = true);
@@ -161,6 +170,7 @@ class _AppointmentFormScreenState extends State<AppointmentFormScreen> {
         context.goNamed(AppRoutes.appointments);
       }
     } on ApiException catch (e) {
+      // Regras da API (período lotado, veículo já agendado...) chegam aqui.
       messenger.showSnackBar(SnackBar(content: Text(e.message)));
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -184,7 +194,19 @@ class _AppointmentFormScreenState extends State<AppointmentFormScreen> {
     if (_loadError != null) {
       return ErrorState(message: _loadError!, onRetry: _load);
     }
+    if (_vehicles.isEmpty) {
+      return EmptyState(
+        message: AppStrings.noVehicleYet,
+        icon: Icons.directions_car_outlined,
+        action: OutlinedButton.icon(
+          onPressed: () => context.goNamed(AppRoutes.vehicleNew),
+          icon: const Icon(Icons.add, size: AppSizes.iconMd),
+          label: const Text(AppStrings.goToNewVehicle),
+        ),
+      );
+    }
 
+    final bool editing = widget.isEditing;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.screenPadding),
       child: Center(
@@ -195,37 +217,68 @@ class _AppointmentFormScreenState extends State<AppointmentFormScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
-                  AppStrings.appointmentFormIntro,
+                Text(
+                  editing
+                      ? AppStrings.appointmentEditIntro
+                      : AppStrings.appointmentFormIntro,
                   style: AppTextStyles.body,
                 ),
-                AppTextField(
-                  label: AppStrings.fieldName,
-                  required: true,
-                  controller: _name,
-                  hint: AppStrings.hintName,
-                  textInputAction: TextInputAction.next,
-                  validator: Validators.fullName,
+                const FieldLabel(AppStrings.fieldVehicle, required: true),
+                DropdownButtonFormField<int>(
+                  initialValue: _vehicleId,
+                  isExpanded: true,
+                  style: AppTextStyles.input,
+                  decoration: const InputDecoration(
+                    hintText: AppStrings.hintVehicle,
+                  ),
+                  items: [
+                    for (final Vehicle v in _vehicles)
+                      DropdownMenuItem(
+                        value: v.id,
+                        child: Text('${v.title} • ${v.plate}'),
+                      ),
+                  ],
+                  // Na edição a API não permite trocar o veículo.
+                  onChanged: editing
+                      ? null
+                      : (v) => setState(() => _vehicleId = v),
+                  validator: (v) => Validators.requiredSelection(
+                    v,
+                    field: AppStrings.fieldVehicle,
+                  ),
                 ),
-                AppTextField(
-                  label: AppStrings.fieldPhone,
-                  required: true,
-                  controller: _phone,
-                  hint: AppStrings.hintPhone,
-                  keyboardType: TextInputType.phone,
-                  inputFormatters: [PhoneInputFormatter()],
-                  textInputAction: TextInputAction.next,
-                  validator: Validators.phone,
+                const FieldLabel(AppStrings.fieldService, required: true),
+                DropdownButtonFormField<int>(
+                  initialValue: _serviceId,
+                  isExpanded: true,
+                  style: AppTextStyles.input,
+                  decoration: const InputDecoration(
+                    hintText: AppStrings.hintService,
+                  ),
+                  items: [
+                    for (final ServiceItem s in _services)
+                      DropdownMenuItem(
+                        value: s.id,
+                        child: Text(
+                          '${s.name} • ${Formatters.currency(s.price)}',
+                        ),
+                      ),
+                  ],
+                  onChanged: editing
+                      ? null
+                      : (v) => setState(() => _serviceId = v),
+                  validator: (v) => Validators.requiredSelection(
+                    v,
+                    field: AppStrings.fieldService,
+                  ),
                 ),
-                AppTextField(
-                  label: AppStrings.fieldVehicle,
-                  required: true,
-                  controller: _vehicle,
-                  hint: AppStrings.hintVehicle,
-                  textInputAction: TextInputAction.next,
-                  validator: (v) =>
-                      Validators.required(v, field: AppStrings.fieldVehicle),
-                ),
+                if (editing) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  const Text(
+                    AppStrings.lockedOnEdit,
+                    style: AppTextStyles.caption,
+                  ),
+                ],
                 AppTextField(
                   label: AppStrings.fieldDate,
                   required: true,
@@ -237,13 +290,7 @@ class _AppointmentFormScreenState extends State<AppointmentFormScreen> {
                     Icons.calendar_today_outlined,
                     size: AppSizes.iconMd,
                   ),
-                  // Na edição, aceita manter uma data que já passou.
-                  validator: (_) => widget.isEditing
-                      ? Validators.requiredSelection(
-                          _selectedDate,
-                          field: AppStrings.fieldDate,
-                        )
-                      : Validators.futureDate(_selectedDate),
+                  validator: (_) => Validators.futureDate(_selectedDate),
                 ),
                 const FieldLabel(AppStrings.fieldPeriod, required: true),
                 DropdownButtonFormField<AppointmentPeriod>(
@@ -268,18 +315,11 @@ class _AppointmentFormScreenState extends State<AppointmentFormScreen> {
                   hint: AppStrings.hintNotes,
                   maxLines: 3,
                 ),
-                const SizedBox(height: AppSpacing.md),
-                _ConsentField(
-                  initialValue: _consent,
-                  onChanged: (v) => _consent = v,
-                ),
-                const SizedBox(height: AppSpacing.md),
+                const SizedBox(height: AppSpacing.xl),
                 PrimaryButton(
-                  widget.isEditing
-                      ? AppStrings.appointmentUpdate
-                      : AppStrings.appointmentSave,
+                  editing ? AppStrings.saveChanges : AppStrings.appointmentSave,
                   loading: _saving,
-                  loadingLabel: AppStrings.appointmentSaving,
+                  loadingLabel: AppStrings.saving,
                   onPressed: _submit,
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -312,51 +352,4 @@ class _AppointmentFormScreenState extends State<AppointmentFormScreen> {
       ),
     );
   }
-}
-
-/// Caixa de "autorizo o contato" que participa da validação do formulário.
-class _ConsentField extends FormField<bool> {
-  _ConsentField({
-    required bool initialValue,
-    required ValueChanged<bool> onChanged,
-  }) : super(
-         initialValue: initialValue,
-         validator: Validators.consent,
-         builder: (state) => Column(
-           crossAxisAlignment: CrossAxisAlignment.start,
-           children: [
-             Row(
-               crossAxisAlignment: CrossAxisAlignment.start,
-               children: [
-                 SizedBox(
-                   width: AppSizes.checkboxWidth,
-                   child: Checkbox(
-                     value: state.value ?? false,
-                     visualDensity: VisualDensity.compact,
-                     onChanged: (v) {
-                       state.didChange(v ?? false);
-                       onChanged(v ?? false);
-                     },
-                   ),
-                 ),
-                 const SizedBox(width: AppSpacing.sm),
-                 const Expanded(
-                   child: Padding(
-                     padding: EdgeInsets.only(top: AppSpacing.xs),
-                     child: Text(
-                       AppStrings.appointmentConsent,
-                       style: AppTextStyles.caption,
-                     ),
-                   ),
-                 ),
-               ],
-             ),
-             if (state.hasError)
-               Text(
-                 state.errorText!,
-                 style: AppTextStyles.caption.copyWith(color: AppColors.danger),
-               ),
-           ],
-         ),
-       );
 }

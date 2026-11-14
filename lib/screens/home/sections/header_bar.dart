@@ -9,7 +9,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../models/app_user.dart';
 import '../../../widgets/app_logo.dart';
 
-enum _MenuAction { appointments, account, signOut }
+enum _MenuAction { appointments, vehicles, account, signOut }
 
 /// Cabeçalho da página inicial: logo, botão "Agendar" e menu do usuário.
 class HeaderBar extends StatelessWidget {
@@ -64,6 +64,8 @@ class HeaderBar extends StatelessWidget {
       switch (action) {
         case _MenuAction.appointments:
           context.goNamed(AppRoutes.appointments);
+        case _MenuAction.vehicles:
+          context.goNamed(AppRoutes.vehicles);
         case _MenuAction.account:
           context.goNamed(AppRoutes.account);
         case _MenuAction.signOut:
@@ -88,6 +90,11 @@ class HeaderBar extends StatelessWidget {
         _MenuAction.appointments,
         Icons.event_note_outlined,
         AppStrings.menuAppointments,
+      ),
+      _item(
+        _MenuAction.vehicles,
+        Icons.directions_car_outlined,
+        AppStrings.menuVehicles,
       ),
       _item(_MenuAction.account, Icons.person_outline, AppStrings.menuAccount),
       _item(

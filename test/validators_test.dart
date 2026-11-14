@@ -6,7 +6,7 @@ void main() {
     test('required recusa vazio e aceita texto', () {
       expect(Validators.required(''), isNotNull);
       expect(Validators.required('   '), isNotNull);
-      expect(Validators.required('Gol 2015'), isNull);
+      expect(Validators.required('Gol'), isNull);
     });
 
     test('email', () {
@@ -19,15 +19,25 @@ void main() {
       expect(Validators.password('12345678'), isNull);
     });
 
-    test('phone aceita 10 ou 11 dígitos com máscara', () {
-      expect(Validators.phone('(11) 9876'), isNotNull);
-      expect(Validators.phone('(11) 98765-4321'), isNull);
-      expect(Validators.phone('(11) 3456-7890'), isNull);
-    });
-
     test('fullName exige nome e sobrenome', () {
       expect(Validators.fullName('João'), isNotNull);
       expect(Validators.fullName('João Silva'), isNull);
+    });
+
+    test('plate aceita padrão antigo e Mercosul, com hífen ou minúsculas', () {
+      expect(Validators.plate('ABC1234'), isNull);
+      expect(Validators.plate('abc-1d23'), isNull);
+      expect(Validators.plate('AB12345'), isNotNull);
+      expect(Validators.plate(''), isNotNull);
+    });
+
+    test('year aceita de 1950 até o próximo ano', () {
+      final DateTime today = DateTime(2026, 11, 14);
+      expect(Validators.year('1949', today: today), isNotNull);
+      expect(Validators.year('2015', today: today), isNull);
+      expect(Validators.year('2027', today: today), isNull);
+      expect(Validators.year('2028', today: today), isNotNull);
+      expect(Validators.year('abc', today: today), isNotNull);
     });
 
     test('futureDate recusa datas passadas', () {
@@ -41,11 +51,6 @@ void main() {
         Validators.futureDate(DateTime(2026, 11, 14), today: today),
         isNull,
       );
-    });
-
-    test('consent exige marcação', () {
-      expect(Validators.consent(false), isNotNull);
-      expect(Validators.consent(true), isNull);
     });
   });
 }

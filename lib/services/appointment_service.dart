@@ -1,12 +1,10 @@
 import 'package:flutter/foundation.dart';
 
-import '../core/constants/app_strings.dart';
 import '../models/appointment.dart';
 import 'api_client.dart';
+import 'json_parser.dart';
 
-/// CRUD de agendamentos na API Laravel.
-///
-/// Rotas usadas (padrão `Route::apiResource('agendamentos', ...)`):
+/// CRUD de agendamentos na API Laravel (`apiResource /agendamentos`).
 ///
 /// | Ação      | Método | Rota                  |
 /// |-----------|--------|-----------------------|
@@ -14,9 +12,12 @@ import 'api_client.dart';
 /// | detalhar  | GET    | /agendamentos/{id}    |
 /// | criar     | POST   | /agendamentos         |
 /// | editar    | PUT    | /agendamentos/{id}    |
+/// | cancelar  | PUT    | /agendamentos/{id}    |
 /// | excluir   | DELETE | /agendamentos/{id}    |
 ///
 /// As telas nunca chamam a API: sempre passam por aqui e recebem models.
+/// As regras (período lotado, status etc.) são validadas pela API, e as
+/// mensagens de erro chegam às telas como [ApiException].
 class AppointmentService {
   AppointmentService._();
 
@@ -26,20 +27,22 @@ class AppointmentService {
 
   final ApiClient _api = ApiClient.instance;
 
-  /// Muda de valor a cada criação, edição ou exclusão. As telas de lista e
-  /// de detalhes escutam este contador para recarregar os dados.
+  /// Muda a cada criação, edição ou exclusão. As telas de lista e de
+  /// detalhes escutam este contador para recarregar os dados.
   final ValueNotifier<int> changes = ValueNotifier<int>(0);
 
+  /// A API pagina a lista (`{"data": [...], "total": ...}`); o app mostra
+  /// a primeira página, com até 10 agendamentos.
   Future<List<Appointment>> fetchAll() async {
     final dynamic data = await _api.get(_path);
-    return _parse(
+    return JsonParser.parse(
       () => ApiClient.asList(data).map(Appointment.fromJson).toList(),
     );
   }
 
   Future<Appointment> fetchById(int id) async {
     final dynamic data = await _api.get('$_path/$id');
-    return _parse(() => Appointment.fromJson(ApiClient.asMap(data)));
+    return JsonParser.parse(() => Appointment.fromJson(ApiClient.asMap(data)));
   }
 
   Future<void> create(Appointment appointment) async {
@@ -48,23 +51,19 @@ class AppointmentService {
   }
 
   Future<void> update(Appointment appointment) async {
-    await _api.put('$_path/${appointment.id}', appointment.toJson());
+    await _api.put('$_path/${appointment.id}', appointment.toUpdateJson());
+    changes.value++;
+  }
+
+  Future<void> cancel(int id) async {
+    await _api.put('$_path/$id', <String, dynamic>{
+      'status': AppointmentStatus.canceled.apiValue,
+    });
     changes.value++;
   }
 
   Future<void> delete(int id) async {
     await _api.delete('$_path/$id');
     changes.value++;
-  }
-
-  /// Transforma JSON fora do formato esperado em [ApiException].
-  T _parse<T>(T Function() parse) {
-    try {
-      return parse();
-    } on FormatException {
-      throw const ApiException(AppStrings.errorUnexpectedResponse);
-    } on TypeError {
-      throw const ApiException(AppStrings.errorUnexpectedResponse);
-    }
   }
 }

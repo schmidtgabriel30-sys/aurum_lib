@@ -1,21 +1,26 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_spacing.dart';
-import '../../core/theme/app_text_styles.dart';
-import '../../core/utils/formatters.dart';
-import '../../models/appointment.dart';
+import '../core/theme/app_colors.dart';
+import '../core/theme/app_spacing.dart';
+import '../core/theme/app_text_styles.dart';
 
-/// Item da lista de agendamentos.
-class AppointmentCard extends StatelessWidget {
-  const AppointmentCard({
+/// Cartão clicável das listas (agendamentos e veículos): ícone à esquerda,
+/// título, linhas de texto e um elemento opcional à direita.
+class ListTileCard extends StatelessWidget {
+  const ListTileCard({
     super.key,
-    required this.appointment,
+    required this.icon,
+    required this.title,
+    required this.lines,
     required this.onTap,
+    this.trailing,
   });
 
-  final Appointment appointment;
+  final IconData icon;
+  final String title;
+  final List<String> lines;
   final VoidCallback onTap;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) => Material(
@@ -38,11 +43,7 @@ class AppointmentCard extends StatelessWidget {
                 color: AppColors.iconBackground,
                 borderRadius: BorderRadius.circular(AppRadius.md),
               ),
-              child: const Icon(
-                Icons.directions_car_outlined,
-                size: AppSizes.iconLg,
-                color: AppColors.gold,
-              ),
+              child: Icon(icon, size: AppSizes.iconLg, color: AppColors.gold),
             ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
@@ -50,21 +51,27 @@ class AppointmentCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    appointment.vehicle,
+                    title,
                     style: AppTextStyles.cardTitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    '${Formatters.fullDate(appointment.preferredDate)} • '
-                    '${appointment.period.label}',
-                    style: AppTextStyles.bodySmall,
-                  ),
-                  Text(appointment.name, style: AppTextStyles.caption),
+                  for (final (index, line) in lines.indexed) ...[
+                    if (index == 0) const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      line,
+                      style: index == 0
+                          ? AppTextStyles.bodySmall
+                          : AppTextStyles.caption,
+                    ),
+                  ],
                 ],
               ),
             ),
+            if (trailing != null) ...[
+              const SizedBox(width: AppSpacing.sm),
+              trailing!,
+            ],
             const Icon(
               Icons.chevron_right,
               size: AppSizes.iconLg,

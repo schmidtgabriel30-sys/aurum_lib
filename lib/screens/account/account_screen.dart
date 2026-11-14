@@ -95,6 +95,15 @@ class _AccountScreenState extends State<AccountScreen> {
               label: const Text(AppStrings.menuAppointments),
             ),
             const SizedBox(height: AppSpacing.sm),
+            OutlinedButton.icon(
+              onPressed: () => context.goNamed(AppRoutes.vehicles),
+              icon: const Icon(
+                Icons.directions_car_outlined,
+                size: AppSizes.iconMd,
+              ),
+              label: const Text(AppStrings.menuVehicles),
+            ),
+            const SizedBox(height: AppSpacing.sm),
             DangerButton(
               AppStrings.accountSignOut,
               icon: Icons.logout,

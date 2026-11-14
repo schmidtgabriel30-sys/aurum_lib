@@ -15,8 +15,10 @@ import '../../widgets/danger_button.dart';
 import '../../widgets/error_state.dart';
 import '../../widgets/loading_state.dart';
 import '../../widgets/primary_button.dart';
+import '../../widgets/status_badge.dart';
 
-/// Detalhes de um agendamento, com as ações de editar e excluir.
+/// Detalhes de um agendamento, com as ações permitidas pela situação dele:
+/// reagendar (pendente), cancelar (pendente/confirmado) e excluir.
 class AppointmentDetailsScreen extends StatefulWidget {
   const AppointmentDetailsScreen({super.key, required this.appointmentId});
 
@@ -30,7 +32,8 @@ class AppointmentDetailsScreen extends StatefulWidget {
 class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
   final AppointmentService _service = AppointmentService.instance;
   late Future<Appointment> _future = _service.fetchById(widget.appointmentId);
-  bool _deleting = false;
+  bool _busy = false;
+  bool _deleted = false;
 
   @override
   void initState() {
@@ -45,8 +48,41 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
   }
 
   void _reload() {
-    if (_deleting) return; // o registro acabou de ser apagado
+    if (_deleted) return; // o registro acabou de ser apagado
     setState(() => _future = _service.fetchById(widget.appointmentId));
+  }
+
+  /// Executa uma ação na API mostrando o resultado num SnackBar.
+  /// Reaproveitado por cancelar e excluir.
+  Future<bool> _run(Future<void> Function() action, String success) async {
+    setState(() => _busy = true);
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    try {
+      await action();
+      messenger.showSnackBar(SnackBar(content: Text(success)));
+      return true;
+    } on ApiException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+      return false;
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _cancel() async {
+    final bool confirmed = await ConfirmDialog.show(
+      context,
+      title: AppStrings.cancelDialogTitle,
+      message: AppStrings.cancelDialogMessage,
+      confirmLabel: AppStrings.cancelDialogConfirm,
+      cancelLabel: AppStrings.keep,
+    );
+    if (!confirmed || !mounted) return;
+
+    await _run(
+      () => _service.cancel(widget.appointmentId),
+      AppStrings.appointmentCanceled,
+    );
   }
 
   Future<void> _delete() async {
@@ -54,22 +90,20 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
       context,
       title: AppStrings.deleteDialogTitle,
       message: AppStrings.deleteDialogMessage,
-      confirmLabel: AppStrings.appointmentDelete,
+      confirmLabel: AppStrings.delete,
     );
     if (!confirmed || !mounted) return;
 
-    setState(() => _deleting = true);
-    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
-    try {
-      await _service.delete(widget.appointmentId);
-      messenger.showSnackBar(
-        const SnackBar(content: Text(AppStrings.appointmentDeleted)),
-      );
-      if (mounted) context.goNamed(AppRoutes.appointments);
-    } on ApiException catch (e) {
-      if (mounted) setState(() => _deleting = false);
-      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    _deleted = true;
+    final bool ok = await _run(
+      () => _service.delete(widget.appointmentId),
+      AppStrings.appointmentDeleted,
+    );
+    if (!ok) {
+      _deleted = false;
+      return;
     }
+    if (mounted) context.goNamed(AppRoutes.appointments);
   }
 
   void _edit() => context.goNamed(
@@ -90,103 +124,116 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
         if (snapshot.hasError) {
           return ErrorState(message: '${snapshot.error}', onRetry: _reload);
         }
-        return _DetailsBody(
-          appointment: snapshot.data!,
-          deleting: _deleting,
-          onEdit: _edit,
-          onDelete: _delete,
+
+        final Appointment a = snapshot.data!;
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(AppSpacing.screenPadding),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: AppSizes.maxContentWidth,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _DetailsCard(appointment: a),
+                  const SizedBox(height: AppSpacing.xl),
+                  if (a.canEdit) ...[
+                    PrimaryButton(
+                      AppStrings.appointmentEditTitle,
+                      icon: Icons.edit_calendar_outlined,
+                      onPressed: _busy ? null : _edit,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                  ],
+                  if (a.canCancel) ...[
+                    OutlinedButton.icon(
+                      onPressed: _busy ? null : _cancel,
+                      icon: const Icon(
+                        Icons.event_busy_outlined,
+                        size: AppSizes.iconMd,
+                      ),
+                      label: const Text(AppStrings.appointmentCancel),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                  ],
+                  if (a.canDelete)
+                    DangerButton(
+                      AppStrings.delete,
+                      icon: Icons.delete_outline,
+                      onPressed: _busy ? null : _delete,
+                    ),
+                ],
+              ),
+            ),
+          ),
         );
       },
     ),
   );
 }
 
-class _DetailsBody extends StatelessWidget {
-  const _DetailsBody({
-    required this.appointment,
-    required this.deleting,
-    required this.onEdit,
-    required this.onDelete,
-  });
+class _DetailsCard extends StatelessWidget {
+  const _DetailsCard({required this.appointment});
 
   final Appointment appointment;
-  final bool deleting;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
 
   @override
-  Widget build(BuildContext context) => SingleChildScrollView(
-    padding: const EdgeInsets.all(AppSpacing.screenPadding),
-    child: Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: AppSizes.maxContentWidth),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              decoration: BoxDecoration(
-                color: AppColors.white,
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-                border: Border.all(color: AppColors.line),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(appointment.vehicle, style: AppTextStyles.pageTitle),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    Formatters.longDate(appointment.preferredDate),
-                    style: AppTextStyles.body,
-                  ),
-                  const Divider(height: AppSpacing.xxl),
-                  _InfoRow(
-                    icon: Icons.person_outline,
-                    label: AppStrings.fieldName,
-                    value: appointment.name,
-                  ),
-                  _InfoRow(
-                    icon: Icons.phone_outlined,
-                    label: AppStrings.fieldPhone,
-                    value: Formatters.phone(appointment.phone),
-                  ),
-                  _InfoRow(
-                    icon: Icons.calendar_today_outlined,
-                    label: AppStrings.fieldDate,
-                    value: Formatters.fullDate(appointment.preferredDate),
-                  ),
-                  _InfoRow(
-                    icon: Icons.schedule,
-                    label: AppStrings.fieldPeriod,
-                    value: appointment.period.label,
-                  ),
-                  _InfoRow(
-                    icon: Icons.notes,
-                    label: AppStrings.fieldNotes,
-                    value: appointment.notes.isEmpty
-                        ? AppStrings.noNotes
-                        : appointment.notes,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            PrimaryButton(
-              AppStrings.appointmentEdit,
-              icon: Icons.edit_outlined,
-              onPressed: deleting ? null : onEdit,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            DangerButton(
-              AppStrings.appointmentDelete,
-              icon: Icons.delete_outline,
-              onPressed: deleting ? null : onDelete,
-            ),
-          ],
-        ),
+  Widget build(BuildContext context) {
+    final Appointment a = appointment;
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: AppColors.line),
       ),
-    ),
-  );
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  a.service?.name ?? AppStrings.fieldService,
+                  style: AppTextStyles.pageTitle,
+                ),
+              ),
+              StatusBadge(status: a.status),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            '${Formatters.longDate(a.date)} • ${a.period.label}',
+            style: AppTextStyles.body,
+          ),
+          const Divider(height: AppSpacing.xxl),
+          if (a.vehicle != null)
+            _InfoRow(
+              icon: Icons.directions_car_outlined,
+              label: AppStrings.fieldVehicle,
+              value: '${a.vehicle!.title} • ${a.vehicle!.plate}',
+            ),
+          if (a.service != null)
+            _InfoRow(
+              icon: Icons.payments_outlined,
+              label: AppStrings.fieldPrice,
+              value: Formatters.currency(a.service!.price),
+            ),
+          _InfoRow(
+            icon: Icons.engineering_outlined,
+            label: AppStrings.fieldMechanic,
+            value: a.mechanicName ?? AppStrings.noMechanic,
+          ),
+          _InfoRow(
+            icon: Icons.notes,
+            label: AppStrings.fieldNotes,
+            value: a.notes.isEmpty ? AppStrings.noNotes : a.notes,
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _InfoRow extends StatelessWidget {

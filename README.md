@@ -1,23 +1,25 @@
-# Aurum Automotive
+# Aurum Automotive — App
 
-Aplicativo Flutter para **solicitar e gerenciar agendamentos de revisão preventiva** de veículos, consumindo a API Laravel desenvolvida na disciplina de Laravel.
+Aplicativo Flutter para **agendar serviços de oficina**: o cliente cadastra seus veículos e solicita, reagenda, cancela e acompanha agendamentos. Todos os dados vêm da API Laravel [mecanica-api](https://github.com/schmidtgabriel30-sys/mecanica-api).
 
 | | |
 |---|---|
 | **Aluno** | _[seu nome completo aqui]_ |
 | **Back-end** | **Opção A — API Laravel** (consumida com o pacote `http`, autenticação Sanctum) |
-| **Entidade do CRUD** | Agendamento (`/agendamentos`) |
+| **Entidades com CRUD** | Agendamento (`/agendamentos`) e Veículo (`/veiculos`) |
 
 ## Descrição
 
-A Aurum Automotive é uma oficina que oferece um pacote de revisão preventiva. No app o cliente:
+No app o cliente:
 
-- conhece o pacote na página inicial;
+- conhece a oficina e o pacote de revisão na página inicial;
 - cria uma conta ou entra com e-mail e senha;
-- **solicita** um agendamento (veículo, celular, dia e período de preferência);
-- **lista**, **vê os detalhes**, **edita** e **exclui** os próprios agendamentos.
+- **cadastra, edita e exclui** os seus veículos;
+- **solicita** um agendamento, escolhendo veículo e serviço (catálogo vindo da API), dia e período;
+- **lista** e **vê os detalhes** dos agendamentos, com a situação (pendente, confirmado, concluído, cancelado), o valor e o mecânico;
+- **reagenda** enquanto o agendamento está pendente, **cancela** ou **exclui**.
 
-Todos os dados de usuário e agendamentos vêm da API. Nada fica fixo no código.
+As regras de negócio são da API: período lotado, veículo já agendado no mesmo período, veículo com agendamento em aberto etc. Quando a API recusa uma operação, a mensagem dela aparece no app.
 
 ## Telas e rotas
 
@@ -25,13 +27,16 @@ A navegação usa `go_router` com rotas nomeadas definidas em `lib/core/routes/`
 
 | Tela | Nome da rota | Caminho | Login? | Função |
 |---|---|---|---|---|
-| Início | `home` | `/` | não | Apresentação do pacote e atalhos para agendar |
-| Login | `sign-in` | `/login` | não | Entrar com e-mail e senha |
+| Início | `home` | `/` | não | Apresentação e atalhos para agendar |
+| Login | `sign-in` | `/login` | não | Entrar |
 | Cadastro | `sign-up` | `/cadastro` | não | Criar conta |
-| Meus agendamentos | `appointments` | `/agendamentos` | sim | **Listar** (GET) |
-| Novo agendamento | `appointment-new` | `/agendamentos/novo` | sim | **Criar** (POST) |
-| Detalhes | `appointment-details` | `/agendamentos/:id` | sim | **Detalhar** (GET) e **excluir** (DELETE) |
-| Editar agendamento | `appointment-edit` | `/agendamentos/:id/editar` | sim | **Editar** (PUT) |
+| Meus agendamentos | `appointments` | `/agendamentos` | sim | Listar (GET) |
+| Novo agendamento | `appointment-new` | `/agendamentos/novo` | sim | Criar (POST) |
+| Detalhes | `appointment-details` | `/agendamentos/:id` | sim | Ver (GET), cancelar (PUT) e excluir (DELETE) |
+| Reagendar | `appointment-edit` | `/agendamentos/:id/editar` | sim | Editar data, período e observações (PUT) |
+| Meus veículos | `vehicles` | `/veiculos` | sim | Listar (GET) |
+| Cadastrar veículo | `vehicle-new` | `/veiculos/novo` | sim | Criar (POST) |
+| Editar veículo | `vehicle-edit` | `/veiculos/:id/editar` | sim | Editar (PUT) e excluir (DELETE) |
 | Minha conta | `account` | `/conta` | sim | Perfil (GET `/user`) e logout |
 
 As rotas privadas são protegidas pelo `redirect` do `go_router`: quem não está logado é levado para `/login`.
@@ -48,86 +53,77 @@ lib/
 │   ├── constants/     # app_strings.dart (textos da interface), home_content.dart
 │   ├── routes/        # app_routes.dart (nomes/caminhos), app_router.dart (go_router)
 │   ├── theme/         # app_colors, app_spacing (espaços/raios/tamanhos), app_text_styles, app_theme
-│   └── utils/         # validators.dart, formatters.dart, phone_input_formatter.dart
-├── models/            # app_user.dart, appointment.dart (fromJson/toJson)
-├── services/          # api_client.dart, auth_service.dart, appointment_service.dart
+│   └── utils/         # validators.dart, formatters.dart
+├── models/            # app_user, vehicle, service_item, appointment (fromJson/toJson)
+├── services/          # api_client, json_parser, auth, vehicle, service_item, appointment
 ├── screens/
 │   ├── home/          # home_screen.dart + sections/ (blocos da página inicial)
-│   ├── auth/          # sign_in_screen.dart, sign_up_screen.dart
-│   ├── appointments/  # lista, formulário, detalhes e card da lista
-│   └── account/       # account_screen.dart
+│   ├── auth/          # login e cadastro
+│   ├── appointments/  # lista, formulário (novo/reagendar) e detalhes
+│   ├── vehicles/      # lista e formulário (novo/editar/excluir)
+│   └── account/       # minha conta
 └── widgets/           # componentes usados por mais de uma tela
 ```
 
 ### Regras de dependência
 
-- **models/** não importa Flutter: `Appointment` e `AppUser` só descrevem dados e fazem a conversão de/para JSON.
-- **services/** não importa widgets: devolve models (`Future<List<Appointment>>`, `Future<Appointment>`) e lança `ApiException` com a mensagem de erro pronta.
-- **screens/** nunca chama `http`: sempre passa por `AppointmentService` ou `AuthService`.
-- **core/** não importa `services/`: o router recebe o estado de login por parâmetro (`isSignedIn`, `authChanges`) em `app.dart`. Como no projeto de referência, `app_router.dart` importa as telas para montar as rotas.
+- **models/** não importa Flutter: só descreve dados e converte de/para JSON.
+- **services/** não importa widgets: devolve models e lança `ApiException` com a mensagem pronta.
+- **screens/** nunca chama `http`: sempre passa por um service.
+- **core/** não importa `services/`: o router recebe o estado de login por parâmetro em `app.dart`. Como no projeto de referência, `app_router.dart` importa as telas para montar as rotas.
 
 ### Como os dados fluem
 
 ```
-Tela  ──chama──▶  AppointmentService  ──usa──▶  ApiClient  ──HTTP──▶  API Laravel
-  ▲                    │                           │
-  └──── models ◀───────┘◀──── JSON ────────────────┘
+Tela ──chama──▶ AppointmentService / VehicleService ──usa──▶ ApiClient ──HTTP──▶ API Laravel
+  ▲                          │                                   │
+  └──────── models ◀─────────┘◀────────────── JSON ──────────────┘
 ```
 
-- **`ApiClient`** concentra o endereço da API, os cabeçalhos, o token Bearer, o tempo limite (15 s) e a tradução dos erros do Laravel (401, 404, 422 com `errors`).
-- **`AuthService`** é um `ChangeNotifier`: faz login, cadastro e logout, salva o token com `shared_preferences` e avisa o router quando o login muda.
-- **`AppointmentService`** faz o CRUD e incrementa o `ValueNotifier changes` a cada alteração. A lista e os detalhes escutam esse contador e recarregam sozinhos.
+- **`ApiClient`** concentra o endereço da API, os cabeçalhos, o token Bearer, o tempo limite e a tradução dos erros do Laravel (401, 403, 404, 409 e 422).
+- **`JsonParser`** é reaproveitado por todos os services para transformar JSON inválido em erro amigável.
+- **`AuthService`** é um `ChangeNotifier`: faz login, cadastro e logout e salva o token com `shared_preferences`.
+- **`VehicleService`** e **`AppointmentService`** fazem o CRUD e avisam as telas (`ValueNotifier changes`) para recarregar depois de cada alteração.
 
-### Programação assíncrona e estados
+### Componentes reutilizáveis
 
-- Lista, detalhes e conta usam `FutureBuilder` com três estados: **carregando** (`LoadingState`), **erro** (`ErrorState`, com botão "Tentar novamente") e **lista vazia** (`EmptyState`).
-- Os formulários usam `async/await`, desabilitam o botão enquanto salvam e mostram o erro da API num `SnackBar`.
+- **`ListScreenBody`** trata os três estados das listas (carregando, erro e lista vazia) e é usado pelas listas de agendamentos e de veículos.
+- **`ListTileCard`** é o cartão dessas listas.
+- **`StatusBadge`** é a etiqueta de situação, usada na lista e nos detalhes.
+- **`ConfirmDialog`**, **`PrimaryButton`**, **`DangerButton`**, **`AppTextField`** e **`PasswordField`** são usados nos formulários.
 
 ### Validação
 
-Os formulários usam `Form` + `TextFormField`, com validadores centralizados em `core/utils/validators.dart`: obrigatório, nome e sobrenome, e-mail, senha (mínimo de 8), confirmação de senha, celular com DDD, data a partir de hoje, período e aceite de contato.
+Os formulários usam `Form` + `TextFormField`, com validadores centralizados em `core/utils/validators.dart`, que espelham as regras da API:
+- conta: e-mail, senha (mínimo de 8), confirmação, nome e sobrenome;
+- veículo: placa no padrão antigo ou Mercosul, ano entre 1950 e o próximo ano;
+- agendamento: data a partir de hoje, veículo, serviço e período obrigatórios.
 
-## API utilizada
+## API consumida
 
-| Ação | Método | Rota |
-|---|---|---|
-| Cadastro | POST | `/api/register` |
-| Login | POST | `/api/login` → `{ "token": "..." }` |
-| Usuário logado | GET | `/api/user` |
-| Logout | POST | `/api/logout` |
-| Listar agendamentos | GET | `/api/agendamentos` |
-| Detalhar | GET | `/api/agendamentos/{id}` |
-| Criar | POST | `/api/agendamentos` |
-| Editar | PUT | `/api/agendamentos/{id}` |
-| Excluir | DELETE | `/api/agendamentos/{id}` |
-
-Corpo de um agendamento:
-
-```json
-{
-  "nome": "João Silva",
-  "celular": "11912345678",
-  "veiculo": "VW Gol 2015",
-  "data_preferencia": "20/11/2026",
-  "periodo": "Tarde",
-  "observacoes": "Luz do motor acesa",
-  "aceite_contato": true
-}
-```
-
-O app aceita respostas com ou sem o envelope `{"data": ...}` dos API Resources, e lê a data em `dd/mm/aaaa`, `aaaa-mm-dd` ou ISO 8601.
+| Ação | Método | Rota | Corpo enviado |
+|---|---|---|---|
+| Cadastro / login | POST | `/api/register`, `/api/login` | `name, email, password, password_confirmation` / `email, password` |
+| Usuário logado / logout | GET / POST | `/api/user`, `/api/logout` | — |
+| Catálogo de serviços | GET | `/api/servicos` | — |
+| Veículos | GET, POST, PUT, DELETE | `/api/veiculos[/{id}]` | `marca, modelo, placa, ano` |
+| Listar / detalhar agendamentos | GET | `/api/agendamentos[/{id}]` | — |
+| Criar agendamento | POST | `/api/agendamentos` | `veiculo_id, servico_id, data_agendamento (aaaa-mm-dd), periodo (manha/tarde/noite), observacoes` |
+| Reagendar | PUT | `/api/agendamentos/{id}` | `data_agendamento, periodo, observacoes` |
+| Cancelar | PUT | `/api/agendamentos/{id}` | `status: "cancelado"` |
+| Excluir agendamento | DELETE | `/api/agendamentos/{id}` | — |
 
 ## Como rodar
 
-Pré-requisitos: Flutter 3.44 ou superior e a API Laravel rodando (`php artisan serve`, porta 8000).
+1. Suba a API ([mecanica-api](https://github.com/schmidtgabriel30-sys/mecanica-api)) seguindo o README dela. Use `php artisan migrate --seed`, que cria o cliente `cliente@aurum.com` com a senha `12345678`, e depois `php artisan serve`.
 
-1. Instale as dependências:
+2. Instale as dependências do app:
 
    ```bash
    flutter pub get
    ```
 
-2. Rode o app. Por padrão ele usa `http://localhost:8000/api` (Chrome ou Windows):
+3. Rode o app. Por padrão ele usa `http://localhost:8000/api` (Chrome ou Windows):
 
    ```bash
    flutter run -d chrome
@@ -139,7 +135,7 @@ Pré-requisitos: Flutter 3.44 ou superior e a API Laravel rodando (`php artisan 
    flutter run --dart-define=API_URL=http://10.0.2.2:8000/api
    ```
 
-3. Verificações de qualidade:
+4. Verificações de qualidade:
 
    ```bash
    flutter analyze
@@ -155,10 +151,14 @@ Pré-requisitos: Flutter 3.44 ou superior e a API Laravel rodando (`php artisan 
 
 ## Prints das telas
 
-| Início | Login | Lista | Formulário | Detalhes |
-|---|---|---|---|---|
-| ![Início](docs/prints/01_inicio.png) | ![Login](docs/prints/02_login.png) | ![Lista](docs/prints/03_lista.png) | ![Formulário](docs/prints/04_formulario.png) | ![Detalhes](docs/prints/05_detalhes.png) |
+| Início | Login | Agendamentos | Novo agendamento |
+|---|---|---|---|
+| ![](docs/prints/01_inicio.png) | ![](docs/prints/02_login.png) | ![](docs/prints/03_agendamentos.png) | ![](docs/prints/04_novo_agendamento.png) |
 
-| Editar | Excluir | Lista vazia | Erro | Conta |
-|---|---|---|---|---|
-| ![Editar](docs/prints/06_editar.png) | ![Excluir](docs/prints/07_excluir.png) | ![Vazia](docs/prints/08_lista_vazia.png) | ![Erro](docs/prints/09_erro.png) | ![Conta](docs/prints/10_conta.png) |
+| Detalhes | Reagendar | Cancelado | Meus veículos |
+|---|---|---|---|
+| ![](docs/prints/05_detalhes.png) | ![](docs/prints/06_reagendar.png) | ![](docs/prints/07_cancelado.png) | ![](docs/prints/08_veiculos.png) |
+
+| Cadastrar veículo | Regra da API (409) | Lista vazia | Erro de conexão |
+|---|---|---|---|
+| ![](docs/prints/09_veiculo_form.png) | ![](docs/prints/10_regra_da_api.png) | ![](docs/prints/11_lista_vazia.png) | ![](docs/prints/12_erro.png) |

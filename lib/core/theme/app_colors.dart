@@ -24,6 +24,14 @@ abstract final class AppColors {
   static const Color hint = Color(0xFF9CA3AF);
   static const Color mutedOnDark = Color(0xFFB9B2A6);
 
+  // Situação do agendamento
+  static const Color warning = Color(0xFFB45309);
+  static const Color warningSoft = Color(0xFFFDF0D5);
+  static const Color info = Color(0xFF1D4ED8);
+  static const Color infoSoft = Color(0xFFDBEAFE);
+  static const Color success = Color(0xFF15803D);
+  static const Color successSoft = Color(0xFFDCFCE7);
+
   // Estados
   static const Color danger = Color(0xFFDC2626);
   static const Color dangerSoft = Color(0xFFFFEFEF);

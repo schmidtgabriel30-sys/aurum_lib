@@ -8,6 +8,8 @@ import '../../screens/appointments/appointments_screen.dart';
 import '../../screens/auth/sign_in_screen.dart';
 import '../../screens/auth/sign_up_screen.dart';
 import '../../screens/home/home_screen.dart';
+import '../../screens/vehicles/vehicle_form_screen.dart';
+import '../../screens/vehicles/vehicles_screen.dart';
 import '../constants/app_strings.dart';
 import 'app_routes.dart';
 
@@ -22,6 +24,9 @@ import 'app_routes.dart';
 ///   ├ /agendamentos/novo         → formulário de criação
 ///   └ /agendamentos/:id          → detalhes
 ///       └ /agendamentos/:id/editar → formulário de edição
+/// /veiculos                      → lista de veículos      (login)
+///   ├ /veiculos/novo             → cadastro
+///   └ /veiculos/:id/editar       → edição e exclusão
 /// ```
 ///
 /// O `redirect` protege as rotas privadas: quem não está logado é levado ao
@@ -40,9 +45,7 @@ abstract final class AppRouter {
       refreshListenable: authChanges,
       redirect: (context, state) {
         final String location = state.matchedLocation;
-        final bool isPrivate =
-            location.startsWith(AppRoutes.appointmentsPath) ||
-            location == AppRoutes.accountPath;
+        final bool isPrivate = AppRoutes.privatePaths.any(location.startsWith);
         final bool isAuthPage =
             location == AppRoutes.signInPath ||
             location == AppRoutes.signUpPath;
@@ -95,6 +98,24 @@ abstract final class AppRouter {
                       AppointmentFormScreen(appointmentId: _idFrom(state)),
                 ),
               ],
+            ),
+          ],
+        ),
+        GoRoute(
+          path: AppRoutes.vehiclesPath,
+          name: AppRoutes.vehicles,
+          builder: (context, state) => const VehiclesScreen(),
+          routes: <RouteBase>[
+            GoRoute(
+              path: AppRoutes.vehicleNewPath,
+              name: AppRoutes.vehicleNew,
+              builder: (context, state) => const VehicleFormScreen(),
+            ),
+            GoRoute(
+              path: AppRoutes.vehicleEditPath,
+              name: AppRoutes.vehicleEdit,
+              builder: (context, state) =>
+                  VehicleFormScreen(vehicleId: _idFrom(state)),
             ),
           ],
         ),

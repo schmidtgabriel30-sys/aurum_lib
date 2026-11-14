@@ -13,17 +13,20 @@ class ConfirmDialog extends StatelessWidget {
     required this.title,
     required this.message,
     required this.confirmLabel,
+    this.cancelLabel = AppStrings.cancel,
   });
 
   final String title;
   final String message;
   final String confirmLabel;
+  final String cancelLabel;
 
   static Future<bool> show(
     BuildContext context, {
     required String title,
     required String message,
     required String confirmLabel,
+    String cancelLabel = AppStrings.cancel,
   }) async {
     final bool? confirmed = await showDialog<bool>(
       context: context,
@@ -31,6 +34,7 @@ class ConfirmDialog extends StatelessWidget {
         title: title,
         message: message,
         confirmLabel: confirmLabel,
+        cancelLabel: cancelLabel,
       ),
     );
     return confirmed ?? false;
@@ -45,7 +49,7 @@ class ConfirmDialog extends StatelessWidget {
       TextButton(
         onPressed: () => Navigator.of(context).pop(false),
         child: Text(
-          AppStrings.cancel,
+          cancelLabel,
           style: AppTextStyles.link.copyWith(color: AppColors.muted),
         ),
       ),

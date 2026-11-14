@@ -97,6 +97,7 @@ class ApiClient {
   /// Traduz a resposta de erro do Laravel em uma mensagem para o usuário.
   String _errorMessage(int status, dynamic data) {
     if (status == 401) return AppStrings.errorUnauthorized;
+    if (status == 403) return AppStrings.errorForbidden;
     if (status == 404) return AppStrings.errorNotFound;
 
     if (data is Map) {
