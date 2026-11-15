@@ -4,7 +4,7 @@ Aplicativo Flutter para **agendar serviços de oficina**: o cliente cadastra seu
 
 | | |
 |---|---|
-| **Aluno** | _[seu nome completo aqui]_ |
+| **Aluno** | Gabriel Schmidt |
 | **Back-end** | **Opção A — API Laravel** (consumida com o pacote `http`, autenticação Sanctum) |
 | **Entidades com CRUD** | Agendamento (`/agendamentos`) e Veículo (`/veiculos`) |
 
