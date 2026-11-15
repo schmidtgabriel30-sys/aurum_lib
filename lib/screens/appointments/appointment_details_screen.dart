@@ -13,6 +13,7 @@ import '../../services/appointment_service.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../widgets/danger_button.dart';
 import '../../widgets/error_state.dart';
+import '../../widgets/info_row.dart';
 import '../../widgets/loading_state.dart';
 import '../../widgets/primary_button.dart';
 import '../../widgets/status_badge.dart';
@@ -209,23 +210,23 @@ class _DetailsCard extends StatelessWidget {
           ),
           const Divider(height: AppSpacing.xxl),
           if (a.vehicle != null)
-            _InfoRow(
+            InfoRow(
               icon: Icons.directions_car_outlined,
               label: AppStrings.fieldVehicle,
               value: '${a.vehicle!.title} • ${a.vehicle!.plate}',
             ),
           if (a.service != null)
-            _InfoRow(
+            InfoRow(
               icon: Icons.payments_outlined,
               label: AppStrings.fieldPrice,
               value: Formatters.currency(a.service!.price),
             ),
-          _InfoRow(
+          InfoRow(
             icon: Icons.engineering_outlined,
             label: AppStrings.fieldMechanic,
-            value: a.mechanicName ?? AppStrings.noMechanic,
+            value: a.mechanic?.name ?? AppStrings.noMechanic,
           ),
-          _InfoRow(
+          InfoRow(
             icon: Icons.notes,
             label: AppStrings.fieldNotes,
             value: a.notes.isEmpty ? AppStrings.noNotes : a.notes,
@@ -234,43 +235,4 @@ class _DetailsCard extends StatelessWidget {
       ),
     );
   }
-}
-
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: AppSizes.iconMd, color: AppColors.gold),
-        const SizedBox(width: AppSpacing.md),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: AppTextStyles.caption),
-              const SizedBox(height: AppSpacing.xxs),
-              Text(
-                value,
-                style: AppTextStyles.input.copyWith(
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    ),
-  );
 }

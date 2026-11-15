@@ -19,6 +19,15 @@ No app o cliente:
 - **lista** e **vê os detalhes** dos agendamentos, com a situação (pendente, confirmado, concluído, cancelado), o valor e o mecânico;
 - **reagenda** enquanto o agendamento está pendente, **cancela** ou **exclui**.
 
+O **administrador da oficina** entra com o usuário fixo **`AdminA`** e a senha **`AdminA`** e cai num **painel próprio**, com visual escuro e o selo ADMIN. No painel ele:
+
+- vê os agendamentos de **todos os clientes**, com nome e e-mail de quem solicitou, veículo, serviço e data;
+- acompanha contadores por situação e filtra a lista;
+- **aceita** ou **recusa** cada solicitação e escolhe o mecânico responsável;
+- conduz o atendimento: **iniciar atendimento** e depois **concluir**.
+
+Fluxo da situação: **pendente → confirmado → em atendimento → concluído** (pendente e confirmado também podem ser cancelados).
+
 As regras de negócio são da API: período lotado, veículo já agendado no mesmo período, veículo com agendamento em aberto etc. Quando a API recusa uma operação, a mensagem dela aparece no app.
 
 ## Telas e rotas
@@ -38,8 +47,13 @@ A navegação usa `go_router` com rotas nomeadas definidas em `lib/core/routes/`
 | Cadastrar veículo | `vehicle-new` | `/veiculos/novo` | sim | Criar (POST) |
 | Editar veículo | `vehicle-edit` | `/veiculos/:id/editar` | sim | Editar (PUT) e excluir (DELETE) |
 | Minha conta | `account` | `/conta` | sim | Perfil (GET `/user`) e logout |
+| Painel da oficina | `admin` | `/admin` | admin | Todos os agendamentos, contadores e filtro |
+| Atendimento | `admin-appointment` | `/admin/agendamentos/:id` | admin | Aceitar, recusar, escolher mecânico, iniciar e concluir (PUT) |
 
-As rotas privadas são protegidas pelo `redirect` do `go_router`: quem não está logado é levado para `/login`.
+O `redirect` do `go_router` protege as rotas:
+- quem não está logado vai para `/login`;
+- o **admin** fica sempre no painel (`/admin`);
+- o **cliente** não consegue abrir o painel.
 
 ## Arquitetura
 
@@ -61,6 +75,7 @@ lib/
 │   ├── auth/          # login e cadastro
 │   ├── appointments/  # lista, formulário (novo/reagendar) e detalhes
 │   ├── vehicles/      # lista e formulário (novo/editar/excluir)
+│   ├── admin/         # painel da oficina e tela de atendimento
 │   └── account/       # minha conta
 └── widgets/           # componentes usados por mais de uma tela
 ```
@@ -82,7 +97,7 @@ Tela ──chama──▶ AppointmentService / VehicleService ──usa──▶
 
 - **`ApiClient`** concentra o endereço da API, os cabeçalhos, o token Bearer, o tempo limite e a tradução dos erros do Laravel (401, 403, 404, 409 e 422).
 - **`JsonParser`** é reaproveitado por todos os services para transformar JSON inválido em erro amigável.
-- **`AuthService`** é um `ChangeNotifier`: faz login, cadastro e logout e salva o token com `shared_preferences`.
+- **`AuthService`** é um `ChangeNotifier`: faz login (por e-mail ou usuário), cadastro e logout, salva o token e o perfil com `shared_preferences` e informa se o usuário é admin (`isAdmin`).
 - **`VehicleService`** e **`AppointmentService`** fazem o CRUD e avisam as telas (`ValueNotifier changes`) para recarregar depois de cada alteração.
 
 ### Componentes reutilizáveis
@@ -90,6 +105,8 @@ Tela ──chama──▶ AppointmentService / VehicleService ──usa──▶
 - **`ListScreenBody`** trata os três estados das listas (carregando, erro e lista vazia) e é usado pelas listas de agendamentos e de veículos.
 - **`ListTileCard`** é o cartão dessas listas.
 - **`StatusBadge`** é a etiqueta de situação, usada na lista e nos detalhes.
+- **`AdminScaffold`** é a estrutura visual do painel (barra escura com o selo ADMIN), usada nas duas telas do admin.
+- **`InfoRow`** é a linha "ícone + rótulo + valor" dos detalhes do cliente e do atendimento do admin.
 - **`ConfirmDialog`**, **`PrimaryButton`**, **`DangerButton`**, **`AppTextField`** e **`PasswordField`** são usados nos formulários.
 
 ### Validação
@@ -103,7 +120,7 @@ Os formulários usam `Form` + `TextFormField`, com validadores centralizados em 
 
 | Ação | Método | Rota | Corpo enviado |
 |---|---|---|---|
-| Cadastro / login | POST | `/api/register`, `/api/login` | `name, email, password, password_confirmation` / `email, password` |
+| Cadastro / login | POST | `/api/register`, `/api/login` | `name, email, password, password_confirmation` / `login` (e-mail ou usuário), `password` |
 | Usuário logado / logout | GET / POST | `/api/user`, `/api/logout` | — |
 | Catálogo de serviços | GET | `/api/servicos` | — |
 | Veículos | GET, POST, PUT, DELETE | `/api/veiculos[/{id}]` | `marca, modelo, placa, ano` |
@@ -111,11 +128,20 @@ Os formulários usam `Form` + `TextFormField`, com validadores centralizados em 
 | Criar agendamento | POST | `/api/agendamentos` | `veiculo_id, servico_id, data_agendamento (aaaa-mm-dd), periodo (manha/tarde/noite), observacoes` |
 | Reagendar | PUT | `/api/agendamentos/{id}` | `data_agendamento, periodo, observacoes` |
 | Cancelar | PUT | `/api/agendamentos/{id}` | `status: "cancelado"` |
+| Admin: listar todos | GET | `/api/agendamentos?per_page=50` | — |
+| Admin: mudar situação | PUT | `/api/agendamentos/{id}` | `status` (`confirmado`, `em_atendimento`, `concluido`, `cancelado`), `mecanico_id` |
+| Admin: mecânicos | GET | `/api/mecanicos` | — |
 | Excluir agendamento | DELETE | `/api/agendamentos/{id}` | — |
 
 ## Como rodar
 
-1. Suba a API ([mecanica-api](https://github.com/schmidtgabriel30-sys/mecanica-api)) seguindo o README dela. Use `php artisan migrate --seed`, que cria o cliente `cliente@aurum.com` com a senha `12345678`, e depois `php artisan serve`.
+1. Suba a API ([mecanica-api](https://github.com/schmidtgabriel30-sys/mecanica-api)) seguindo o README dela: `php artisan migrate --seed` e depois `php artisan serve`. O seeder cria:
+
+   | Perfil | Login | Senha |
+   |---|---|---|
+   | Admin (fixo) | `AdminA` | `AdminA` |
+   | Cliente | `cliente@aurum.com` | `12345678` |
+   | Cliente | `maria@aurum.com` | `12345678` |
 
 2. Instale as dependências do app:
 
@@ -162,3 +188,9 @@ Os formulários usam `Form` + `TextFormField`, com validadores centralizados em 
 | Cadastrar veículo | Regra da API (409) | Lista vazia | Erro de conexão |
 |---|---|---|---|
 | ![](docs/prints/09_veiculo_form.png) | ![](docs/prints/10_regra_da_api.png) | ![](docs/prints/11_lista_vazia.png) | ![](docs/prints/12_erro.png) |
+
+**Painel do administrador**
+
+| Login do admin | Painel | Atendimento | Concluído | Cliente vê a situação |
+|---|---|---|---|---|
+| ![](docs/prints/13_login_admin.png) | ![](docs/prints/14_painel_admin.png) | ![](docs/prints/15_atendimento_admin.png) | ![](docs/prints/16_admin_concluido.png) | ![](docs/prints/17_cliente_ve_status.png) |

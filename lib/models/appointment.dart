@@ -1,3 +1,4 @@
+import 'mechanic.dart';
 import 'service_item.dart';
 import 'vehicle.dart';
 
@@ -23,10 +24,12 @@ enum AppointmentPeriod {
 }
 
 /// Situação do agendamento. O fluxo é decidido pela API:
-/// pendente → confirmado → concluído (ou cancelado).
+/// pendente → confirmado → em atendimento → concluído
+/// (pendente e confirmado também podem ser cancelados).
 enum AppointmentStatus {
   pending('pendente', 'Pendente'),
   confirmed('confirmado', 'Confirmado'),
+  inService('em_atendimento', 'Em atendimento'),
   completed('concluido', 'Concluído'),
   canceled('cancelado', 'Cancelado');
 
@@ -58,7 +61,9 @@ class Appointment {
     this.notes = '',
     this.vehicle,
     this.service,
-    this.mechanicName,
+    this.mechanic,
+    this.clientName,
+    this.clientEmail,
   });
 
   /// `null` enquanto o agendamento ainda não foi salvo na API.
@@ -71,10 +76,14 @@ class Appointment {
   final String notes;
 
   /// Dados relacionados que a API devolve junto (`veiculo`, `servico`,
-  /// `mecanico`). Podem faltar, por isso são opcionais.
+  /// `mecanico`, `cliente`). Podem faltar, por isso são opcionais.
   final Vehicle? vehicle;
   final ServiceItem? service;
-  final String? mechanicName;
+  final Mechanic? mechanic;
+
+  /// Quem solicitou — usado no painel do admin.
+  final String? clientName;
+  final String? clientEmail;
 
   /// O cliente só pode reagendar enquanto está pendente.
   bool get canEdit => status == AppointmentStatus.pending;
@@ -83,13 +92,25 @@ class Appointment {
       status == AppointmentStatus.pending ||
       status == AppointmentStatus.confirmed;
 
-  /// A API não deixa excluir um agendamento concluído.
-  bool get canDelete => status != AppointmentStatus.completed;
+  /// A API não deixa excluir agendamento em atendimento ou concluído.
+  bool get canDelete =>
+      status != AppointmentStatus.inService &&
+      status != AppointmentStatus.completed;
+
+  /// Próximo passo do fluxo para o admin (aceitar → iniciar → concluir).
+  /// `null` quando o agendamento já terminou.
+  AppointmentStatus? get nextStatus => switch (status) {
+    AppointmentStatus.pending => AppointmentStatus.confirmed,
+    AppointmentStatus.confirmed => AppointmentStatus.inService,
+    AppointmentStatus.inService => AppointmentStatus.completed,
+    AppointmentStatus.completed || AppointmentStatus.canceled => null,
+  };
 
   factory Appointment.fromJson(Map<String, dynamic> json) {
     final Object? vehicle = json['veiculo'];
     final Object? service = json['servico'];
     final Object? mechanic = json['mecanico'];
+    final Object? client = json['cliente'];
 
     return Appointment(
       id: int.tryParse('${json['id']}'),
@@ -105,8 +126,14 @@ class Appointment {
       service: service is Map<String, dynamic>
           ? ServiceItem.fromJson(service)
           : null,
-      mechanicName: mechanic is Map<String, dynamic>
-          ? mechanic['nome'] as String?
+      mechanic: mechanic is Map<String, dynamic>
+          ? Mechanic.fromJson(mechanic)
+          : null,
+      clientName: client is Map<String, dynamic>
+          ? client['name'] as String?
+          : null,
+      clientEmail: client is Map<String, dynamic>
+          ? client['email'] as String?
           : null,
     );
   }

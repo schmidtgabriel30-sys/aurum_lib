@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../screens/account/account_screen.dart';
+import '../../screens/admin/admin_appointment_screen.dart';
+import '../../screens/admin/admin_screen.dart';
 import '../../screens/appointments/appointment_details_screen.dart';
 import '../../screens/appointments/appointment_form_screen.dart';
 import '../../screens/appointments/appointments_screen.dart';
@@ -27,17 +29,23 @@ import 'app_routes.dart';
 /// /veiculos                      → lista de veículos      (login)
 ///   ├ /veiculos/novo             → cadastro
 ///   └ /veiculos/:id/editar       → edição e exclusão
+/// /admin                         → painel da oficina      (admin)
+///   └ /admin/agendamentos/:id    → atender um agendamento
 /// ```
 ///
-/// O `redirect` protege as rotas privadas: quem não está logado é levado ao
-/// login. Ele é reavaliado sempre que o estado de login muda, porque o
-/// router escuta a sessão através de `refreshListenable`.
+/// O `redirect` protege as rotas:
+/// - quem não está logado vai para o login;
+/// - o admin fica sempre no painel (`/admin`), com interface própria;
+/// - o cliente não entra no painel.
 ///
-/// O router recebe a sessão por parâmetro (`isSignedIn` e `authChanges`)
-/// em vez de importar o service, porque `core/` não depende de `services/`.
+/// Ele é reavaliado sempre que o estado de login muda, porque o router
+/// escuta a sessão através de `refreshListenable`. O router recebe a sessão
+/// por parâmetro (`isSignedIn`, `isAdmin`, `authChanges`) em vez de importar
+/// o service, porque `core/` não depende de `services/`.
 abstract final class AppRouter {
   static GoRouter create({
     required bool Function() isSignedIn,
+    required bool Function() isAdmin,
     required Listenable authChanges,
   }) {
     return GoRouter(
@@ -45,13 +53,17 @@ abstract final class AppRouter {
       refreshListenable: authChanges,
       redirect: (context, state) {
         final String location = state.matchedLocation;
+        final bool isAdminArea = location.startsWith(AppRoutes.adminPath);
         final bool isPrivate = AppRoutes.privatePaths.any(location.startsWith);
         final bool isAuthPage =
             location == AppRoutes.signInPath ||
             location == AppRoutes.signUpPath;
 
-        if (!isSignedIn() && isPrivate) return AppRoutes.signInPath;
-        if (isSignedIn() && isAuthPage) return AppRoutes.homePath;
+        if (!isSignedIn()) {
+          return isPrivate || isAdminArea ? AppRoutes.signInPath : null;
+        }
+        if (isAdmin()) return isAdminArea ? null : AppRoutes.adminPath;
+        if (isAdminArea || isAuthPage) return AppRoutes.homePath;
         return null;
       },
       routes: <RouteBase>[
@@ -116,6 +128,19 @@ abstract final class AppRouter {
               name: AppRoutes.vehicleEdit,
               builder: (context, state) =>
                   VehicleFormScreen(vehicleId: _idFrom(state)),
+            ),
+          ],
+        ),
+        GoRoute(
+          path: AppRoutes.adminPath,
+          name: AppRoutes.admin,
+          builder: (context, state) => const AdminScreen(),
+          routes: <RouteBase>[
+            GoRoute(
+              path: AppRoutes.adminAppointmentPath,
+              name: AppRoutes.adminAppointment,
+              builder: (context, state) =>
+                  AdminAppointmentScreen(appointmentId: _idFrom(state)),
             ),
           ],
         ),

@@ -26,7 +26,10 @@ abstract final class AppStrings {
 
   // Login
   static const String signInTitle = 'Entrar';
-  static const String signInSubtitle = 'Acesse sua conta para continuar';
+  static const String signInSubtitle =
+      'Clientes entram com o e-mail; a oficina, com o usuário de admin.';
+  static const String fieldLogin = 'E-mail ou usuário';
+  static const String hintLogin = 'seuemail@exemplo.com ou usuário';
   static const String signInButton = 'Entrar';
   static const String signInLoading = 'Entrando...';
   static const String forgotPassword = 'Esqueceu sua senha?';
@@ -130,6 +133,31 @@ abstract final class AppStrings {
       'Esta ação não pode ser desfeita. O agendamento será removido do sistema.';
   static const String noNotes = 'Sem observações';
   static const String noMechanic = 'A definir pela oficina';
+
+  // Painel do administrador
+  static const String adminTitle = 'Painel da oficina';
+  static const String adminGreeting = 'Olá,';
+  static const String adminSubtitle =
+      'Acompanhe as solicitações dos clientes e conduza cada atendimento.';
+  static const String adminFilterAll = 'Todos';
+  static const String adminEmpty = 'Nenhum agendamento nesta situação.';
+  static const String adminDetailsTitle = 'Atendimento';
+  static const String adminClient = 'Cliente';
+  static const String adminRequestedService = 'Serviço solicitado';
+  static const String adminMechanic = 'Mecânico responsável';
+  static const String adminMechanicHint = 'Escolha o mecânico (opcional)';
+  static const String adminAccept = 'Aceitar agendamento';
+  static const String adminStart = 'Iniciar atendimento';
+  static const String adminFinish = 'Concluir atendimento';
+  static const String adminReject = 'Recusar';
+  static const String adminCancel = 'Cancelar agendamento';
+  static const String adminRejectTitle = 'Recusar agendamento?';
+  static const String adminRejectMessage =
+      'O agendamento será cancelado e o cliente verá a situação "Cancelado".';
+  static const String adminDone =
+      'Este agendamento já foi encerrado. Não há mais ações.';
+  static const String adminUpdated = 'Situação atualizada:';
+  static const String adminSignOut = 'Sair do painel';
 
   // Pacote em destaque na página inicial
   static const String packageName = 'Revisão preventiva completa';

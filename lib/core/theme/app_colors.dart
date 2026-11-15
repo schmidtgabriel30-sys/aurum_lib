@@ -29,6 +29,8 @@ abstract final class AppColors {
   static const Color warningSoft = Color(0xFFFDF0D5);
   static const Color info = Color(0xFF1D4ED8);
   static const Color infoSoft = Color(0xFFDBEAFE);
+  static const Color inService = Color(0xFF6D28D9);
+  static const Color inServiceSoft = Color(0xFFEDE9FE);
   static const Color success = Color(0xFF15803D);
   static const Color successSoft = Color(0xFFDCFCE7);
 
@@ -37,4 +39,11 @@ abstract final class AppColors {
   static const Color dangerSoft = Color(0xFFFFEFEF);
   static const Color dangerBorder = Color(0xFFFCA5A5);
   static const Color transparent = Color(0x00000000);
+
+  // Painel do administrador (visual escuro, com detalhes dourados)
+  static const Color adminBackground = Color(0xFF14110D);
+  static const Color adminSurface = Color(0xFF221D17);
+  static const Color adminLine = Color(0xFF3A3128);
+  static const Color adminText = Color(0xFFF5EFE6);
+  static const Color adminMuted = Color(0xFFA8998A);
 }

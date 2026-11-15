@@ -1,3 +1,4 @@
+import 'package:aurum/models/app_user.dart';
 import 'package:aurum/models/appointment.dart';
 import 'package:aurum/models/service_item.dart';
 import 'package:aurum/models/vehicle.dart';
@@ -28,6 +29,7 @@ Map<String, dynamic> apiJson({String status = 'pendente'}) => {
     'duracao_minutos': 120,
   },
   'mecanico': null,
+  'cliente': {'id': 2, 'name': 'João Silva', 'email': 'joao@email.com'},
 };
 
 void main() {
@@ -41,7 +43,8 @@ void main() {
       expect(a.status, AppointmentStatus.pending);
       expect(a.vehicle!.plate, 'ABC1D23');
       expect(a.service!.price, 249.90);
-      expect(a.mechanicName, isNull);
+      expect(a.mechanic, isNull);
+      expect(a.clientName, 'João Silva');
     });
 
     test('lê data ISO sem mudar o dia por causa do fuso', () {
@@ -64,6 +67,23 @@ void main() {
       expect(confirmed.canEdit, isFalse);
       expect(confirmed.canCancel, isTrue);
       expect(done.canCancel || done.canDelete, isFalse);
+
+      final Appointment inService = Appointment.fromJson(
+        apiJson(status: 'em_atendimento'),
+      );
+      expect(inService.status, AppointmentStatus.inService);
+      expect(inService.canCancel || inService.canDelete, isFalse);
+    });
+
+    test('próximo passo do admin segue o fluxo da API', () {
+      AppointmentStatus? next(String s) =>
+          Appointment.fromJson(apiJson(status: s)).nextStatus;
+
+      expect(next('pendente'), AppointmentStatus.confirmed);
+      expect(next('confirmado'), AppointmentStatus.inService);
+      expect(next('em_atendimento'), AppointmentStatus.completed);
+      expect(next('concluido'), isNull);
+      expect(next('cancelado'), isNull);
     });
 
     test('toJson (criação) e toUpdateJson (edição) seguem a API', () {
@@ -86,6 +106,12 @@ void main() {
       expect(a.toUpdateJson().containsKey('veiculo_id'), isFalse);
       expect(a.toUpdateJson().containsKey('servico_id'), isFalse);
     });
+  });
+
+  test('AppUser reconhece o admin (is_admin true ou 1)', () {
+    expect(AppUser.fromJson({'id': 1, 'is_admin': true}).isAdmin, isTrue);
+    expect(AppUser.fromJson({'id': 1, 'is_admin': 1}).isAdmin, isTrue);
+    expect(AppUser.fromJson({'id': 2, 'name': 'Ana'}).isAdmin, isFalse);
   });
 
   test('Vehicle converte de/para JSON', () {

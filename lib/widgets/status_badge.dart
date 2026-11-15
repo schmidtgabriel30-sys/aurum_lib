@@ -16,6 +16,10 @@ class StatusBadge extends StatelessWidget {
   (Color, Color) get _colors => switch (status) {
     AppointmentStatus.pending => (AppColors.warning, AppColors.warningSoft),
     AppointmentStatus.confirmed => (AppColors.info, AppColors.infoSoft),
+    AppointmentStatus.inService => (
+      AppColors.inService,
+      AppColors.inServiceSoft,
+    ),
     AppointmentStatus.completed => (AppColors.success, AppColors.successSoft),
     AppointmentStatus.canceled => (AppColors.muted, AppColors.line),
   };

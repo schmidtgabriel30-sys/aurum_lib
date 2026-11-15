@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -15,6 +17,7 @@ class AuthService extends ChangeNotifier {
   static final AuthService instance = AuthService._();
 
   static const String _tokenKey = 'token';
+  static const String _userKey = 'user';
 
   final ApiClient _api = ApiClient.instance;
 
@@ -24,11 +27,21 @@ class AuthService extends ChangeNotifier {
 
   bool get isSignedIn => _api.token != null;
 
+  bool get isAdmin => _currentUser?.isAdmin ?? false;
+
   /// Chamado no `main.dart`: recupera o token salvo no aparelho.
   Future<void> restoreSession() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     _api.token = prefs.getString(_tokenKey);
     if (_api.token == null) return;
+
+    // Usa o perfil salvo para já saber se é admin, mesmo sem internet.
+    final String? savedUser = prefs.getString(_userKey);
+    if (savedUser != null) {
+      _currentUser = AppUser.fromJson(
+        jsonDecode(savedUser) as Map<String, dynamic>,
+      );
+    }
 
     try {
       await fetchCurrentUser();
@@ -38,10 +51,11 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  Future<void> signIn({required String email, required String password}) async {
+  /// [login] é o e-mail do cliente ou o nome de usuário do admin (AdminA).
+  Future<void> signIn({required String login, required String password}) async {
     try {
       final dynamic data = await _api.post('/login', <String, dynamic>{
-        'email': email.trim(),
+        'login': login.trim(),
         'password': password,
       });
       await _saveSession(data);
@@ -71,8 +85,7 @@ class AuthService extends ChangeNotifier {
   Future<AppUser> fetchCurrentUser() async {
     final dynamic data = await _api.get('/user');
     final AppUser user = AppUser.fromJson(ApiClient.asMap(data));
-    _currentUser = user;
-    notifyListeners();
+    await _saveUser(user);
     return user;
   }
 
@@ -97,8 +110,7 @@ class AuthService extends ChangeNotifier {
 
     final dynamic user = (data as Map)['user'];
     if (user is Map<String, dynamic>) {
-      _currentUser = AppUser.fromJson(user);
-      notifyListeners();
+      await _saveUser(AppUser.fromJson(user));
     } else {
       try {
         await fetchCurrentUser();
@@ -108,11 +120,19 @@ class AuthService extends ChangeNotifier {
     }
   }
 
+  Future<void> _saveUser(AppUser user) async {
+    _currentUser = user;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_userKey, jsonEncode(user.toJson()));
+    notifyListeners();
+  }
+
   Future<void> _clearSession() async {
     _api.token = null;
     _currentUser = null;
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
+    await prefs.remove(_userKey);
     notifyListeners();
   }
 }

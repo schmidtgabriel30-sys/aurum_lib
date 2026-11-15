@@ -42,10 +42,17 @@ abstract final class AppRoutes {
   static const String vehicleEdit = 'vehicle-edit';
   static const String vehicleEditPath = ':id/editar';
 
+  // Painel do administrador (exige login de admin)
+  static const String admin = 'admin';
+  static const String adminPath = '/admin';
+
+  static const String adminAppointment = 'admin-appointment';
+  static const String adminAppointmentPath = 'agendamentos/:id';
+
   /// Nome do parâmetro de caminho usado em detalhes e edição.
   static const String idParam = 'id';
 
-  /// Rotas que exigem login.
+  /// Rotas que exigem login de cliente.
   static const List<String> privatePaths = [
     appointmentsPath,
     vehiclesPath,

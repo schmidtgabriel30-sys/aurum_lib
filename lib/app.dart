@@ -22,6 +22,7 @@ class _AurumAppState extends State<AurumApp> {
   // Criado uma vez só: o router guarda a pilha de telas.
   final GoRouter _router = AppRouter.create(
     isSignedIn: () => AuthService.instance.isSignedIn,
+    isAdmin: () => AuthService.instance.isAdmin,
     authChanges: AuthService.instance,
   );
 

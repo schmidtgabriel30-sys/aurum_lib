@@ -26,13 +26,13 @@ class SignInScreen extends StatefulWidget {
 
 class _SignInScreenState extends State<SignInScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final TextEditingController _email = TextEditingController();
+  final TextEditingController _login = TextEditingController();
   final TextEditingController _password = TextEditingController();
   bool _loading = false;
 
   @override
   void dispose() {
-    _email.dispose();
+    _login.dispose();
     _password.dispose();
     super.dispose();
   }
@@ -43,10 +43,14 @@ class _SignInScreenState extends State<SignInScreen> {
     setState(() => _loading = true);
     try {
       await AuthService.instance.signIn(
-        email: _email.text,
+        login: _login.text,
         password: _password.text,
       );
-      if (mounted) context.goNamed(AppRoutes.home);
+      if (!mounted) return;
+      // O admin vai para o painel da oficina; o cliente, para o início.
+      context.goNamed(
+        AuthService.instance.isAdmin ? AppRoutes.admin : AppRoutes.home,
+      );
     } on ApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -82,12 +86,13 @@ class _SignInScreenState extends State<SignInScreen> {
           ),
           const SizedBox(height: AppSpacing.md),
           AppTextField(
-            label: AppStrings.fieldEmail,
-            controller: _email,
-            hint: AppStrings.hintEmail,
+            label: AppStrings.fieldLogin,
+            controller: _login,
+            hint: AppStrings.hintLogin,
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.next,
-            validator: Validators.email,
+            validator: (v) =>
+                Validators.required(v, field: AppStrings.fieldLogin),
           ),
           PasswordField(
             controller: _password,

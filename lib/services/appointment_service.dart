@@ -13,6 +13,7 @@ import 'json_parser.dart';
 /// | criar     | POST   | /agendamentos         |
 /// | editar    | PUT    | /agendamentos/{id}    |
 /// | cancelar  | PUT    | /agendamentos/{id}    |
+/// | status    | PUT    | /agendamentos/{id}    | (admin)
 /// | excluir   | DELETE | /agendamentos/{id}    |
 ///
 /// As telas nunca chamam a API: sempre passam por aqui e recebem models.
@@ -31,10 +32,11 @@ class AppointmentService {
   /// detalhes escutam este contador para recarregar os dados.
   final ValueNotifier<int> changes = ValueNotifier<int>(0);
 
-  /// A API pagina a lista (`{"data": [...], "total": ...}`); o app mostra
-  /// a primeira página, com até 10 agendamentos.
-  Future<List<Appointment>> fetchAll() async {
-    final dynamic data = await _api.get(_path);
+  /// A API pagina a lista (`{"data": [...], "total": ...}`). O app pede a
+  /// primeira página; o admin pede mais itens com [perPage].
+  Future<List<Appointment>> fetchAll({int? perPage}) async {
+    final String query = perPage == null ? '' : '?per_page=$perPage';
+    final dynamic data = await _api.get('$_path$query');
     return JsonParser.parse(
       () => ApiClient.asList(data).map(Appointment.fromJson).toList(),
     );
@@ -58,6 +60,20 @@ class AppointmentService {
   Future<void> cancel(int id) async {
     await _api.put('$_path/$id', <String, dynamic>{
       'status': AppointmentStatus.canceled.apiValue,
+    });
+    changes.value++;
+  }
+
+  /// Admin: muda a situação e, opcionalmente, define o mecânico.
+  Future<void> updateStatus(
+    int id,
+    AppointmentStatus status, {
+    int? mechanicId,
+  }) async {
+    await _api.put('$_path/$id', <String, dynamic>{
+      'status': status.apiValue,
+      // O "?" só inclui a chave quando mechanicId não é nulo.
+      'mecanico_id': ?mechanicId,
     });
     changes.value++;
   }
